@@ -42,7 +42,7 @@ match client.get_bnb_balance("0xYourAddress").await {
 You can use the `get_normal_transactions` method to get the normal transaction list of a specified address.
 
 ```rust
-match client.get_normal_transactions("0xYourAddress").await {
+match client.get_normal_transactions("0xYourAddress","0","99999999").await {
     Ok(transactions) => {
         for tx in transactions {
             println!("Transaction: {:?}", tx);
