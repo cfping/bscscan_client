@@ -1,36 +1,27 @@
-use api::accounts::{Balance, Transaction};
-use api::contracts::{Contract, ContractCreation};
-
-use api::blocks::{
-    BlockCountdown, BlockReward, DailyAvgBlockSize, DailyAvgBlockTime, DailyBlockCount,
-    DailyBlockRewards,
+use crate::{
+    api,
+    types::{
+        accounts::{Balance, Transaction},
+        blocks::{
+            BlockCountdown, BlockReward, DailyAvgBlockSize, DailyAvgBlockTime, DailyBlockCount,
+            DailyBlockRewards,
+        },
+        contracts::{Contract, ContractCreation},
+        gastracker::{
+            DailyAverageGasLimit, DailyAverageGasPrice, DailyTotalGasUsed, GasOracleResult,
+        },
+        logs::LogEntry,
+        stats::{
+            BnbHistoricalPrice, BnbPriceResult, DailyNetworkUtilization, DailyNewAddress,
+            DailyTransactionCount, DailyTransactionFee, Validator,
+        },
+        tokens::{
+            AddressNFTBalance, AddressNFTInventory, AddressTokenBalance, TokenHolder, TokenInfo,
+        },
+        transactions::{ContractExecutionStatus, TransactionReceiptStatus},
+        ApiResponse,
+    },
 };
-use api::transactions::{ContractExecutionStatus, TransactionReceiptStatus};
-
-use serde::Deserialize;
-
-use crate::api;
-use crate::api::gastracker::{
-    DailyAverageGasLimitResponse, DailyAverageGasPriceResponse, DailyTotalGasUsedResponse,
-    GasOracleResponse,
-};
-use crate::api::geth_parity_proxy::ApiProxyResponse;
-use crate::api::logs::LogResponse;
-use crate::api::stats::{
-    BnbHistoricalPriceResponse, BnbPriceResponse, BnbSupplyResponse,
-    DailyNetworkUtilizationResponse, DailyNewAddressResponse, DailyTransactionCountResponse,
-    DailyTransactionFeeResponse, ValidatorsResponse,
-};
-use crate::api::tokens::{
-    AddressNFTBalanceResponse, AddressNFTInventoryResponse, AddressTokenBalanceResponse,
-    TokenHoldersResponse, TokenInfoResponse, TokenResponse,
-};
-#[derive(Deserialize, Debug)]
-pub struct ApiResponse<T> {
-    pub status: String,
-    pub message: String,
-    pub result: Vec<T>,
-}
 
 pub struct BscScanClient {
     base_url: String,
@@ -46,6 +37,10 @@ impl BscScanClient {
             base_url: "https://api.bscscan.com".to_owned(),
         }
     }
+    pub fn set_client(&mut self, client: reqwest::Client) {
+        self.client = client;
+    }
+
     pub async fn get_bnb_balance(&self, address: &str) -> Result<String, reqwest::Error> {
         api::accounts::get_bnb_balance(&self.client, &self.base_url, &self.api_key, address).await
     }
@@ -276,7 +271,7 @@ impl BscScanClient {
         to_block: u64,
         address: &str,
         topic0: &str,
-    ) -> Result<LogResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<Vec<LogEntry>>, reqwest::Error> {
         api::logs::fetch_logs(
             &self.client,
             &self.base_url,
@@ -289,7 +284,7 @@ impl BscScanClient {
         .await
     }
     //geth_parity_proxy
-    pub async fn eth_block_number(&self) -> Result<ApiProxyResponse, reqwest::Error> {
+    pub async fn eth_block_number(&self) -> Result<ApiResponse<serde_json::Value>, reqwest::Error> {
         api::geth_parity_proxy::eth_block_number(&self.client, &self.base_url, &self.api_key).await
     }
 
@@ -297,7 +292,7 @@ impl BscScanClient {
         &self,
         tag: &str,
         boolean: bool,
-    ) -> Result<ApiProxyResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<serde_json::Value>, reqwest::Error> {
         api::geth_parity_proxy::eth_get_block_by_number(
             &self.client,
             &self.base_url,
@@ -311,7 +306,7 @@ impl BscScanClient {
     pub async fn eth_get_block_transaction_count_by_number(
         &self,
         tag: &str,
-    ) -> Result<ApiProxyResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<serde_json::Value>, reqwest::Error> {
         api::geth_parity_proxy::eth_get_block_transaction_count_by_number(
             &self.client,
             &self.base_url,
@@ -324,7 +319,7 @@ impl BscScanClient {
     pub async fn eth_get_transaction_by_hash(
         &self,
         txhash: &str,
-    ) -> Result<ApiProxyResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<serde_json::Value>, reqwest::Error> {
         api::geth_parity_proxy::eth_get_transaction_by_hash(
             &self.client,
             &self.base_url,
@@ -338,7 +333,7 @@ impl BscScanClient {
         &self,
         tag: &str,
         index: &str,
-    ) -> Result<ApiProxyResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<serde_json::Value>, reqwest::Error> {
         api::geth_parity_proxy::eth_get_transaction_by_block_number_and_index(
             &self.client,
             &self.base_url,
@@ -353,7 +348,7 @@ impl BscScanClient {
         &self,
         address: &str,
         tag: &str,
-    ) -> Result<ApiProxyResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<serde_json::Value>, reqwest::Error> {
         api::geth_parity_proxy::eth_get_transaction_count(
             &self.client,
             &self.base_url,
@@ -367,7 +362,7 @@ impl BscScanClient {
     pub async fn eth_send_raw_transaction(
         &self,
         hex: &str,
-    ) -> Result<ApiProxyResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<serde_json::Value>, reqwest::Error> {
         api::geth_parity_proxy::eth_send_raw_transaction(
             &self.client,
             &self.base_url,
@@ -380,7 +375,7 @@ impl BscScanClient {
     pub async fn eth_get_transaction_receipt(
         &self,
         txhash: &str,
-    ) -> Result<ApiProxyResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<serde_json::Value>, reqwest::Error> {
         api::geth_parity_proxy::eth_get_transaction_receipt(
             &self.client,
             &self.base_url,
@@ -395,7 +390,7 @@ impl BscScanClient {
         to: &str,
         data: &str,
         tag: &str,
-    ) -> Result<ApiProxyResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<serde_json::Value>, reqwest::Error> {
         api::geth_parity_proxy::eth_call(&self.client, &self.base_url, to, data, tag, &self.api_key)
             .await
     }
@@ -404,7 +399,7 @@ impl BscScanClient {
         &self,
         address: &str,
         tag: &str,
-    ) -> Result<ApiProxyResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<serde_json::Value>, reqwest::Error> {
         api::geth_parity_proxy::eth_get_code(
             &self.client,
             &self.base_url,
@@ -420,7 +415,7 @@ impl BscScanClient {
         address: &str,
         position: &str,
         tag: &str,
-    ) -> Result<ApiProxyResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<serde_json::Value>, reqwest::Error> {
         api::geth_parity_proxy::eth_get_storage_at(
             &self.client,
             &self.base_url,
@@ -432,7 +427,7 @@ impl BscScanClient {
         .await
     }
 
-    pub async fn eth_gas_price(&self) -> Result<ApiProxyResponse, reqwest::Error> {
+    pub async fn eth_gas_price(&self) -> Result<ApiResponse<serde_json::Value>, reqwest::Error> {
         api::geth_parity_proxy::eth_gas_price(&self.client, &self.base_url, &self.api_key).await
     }
 
@@ -443,7 +438,7 @@ impl BscScanClient {
         value: &str,
         gas_price: &str,
         gas: &str,
-    ) -> Result<ApiProxyResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<serde_json::Value>, reqwest::Error> {
         api::geth_parity_proxy::eth_estimate_gas(
             &self.client,
             &self.base_url,
@@ -456,15 +451,15 @@ impl BscScanClient {
         )
         .await
     }
-    pub async fn get_bnb_supply(&self) -> Result<BnbSupplyResponse, reqwest::Error> {
+    pub async fn get_bnb_supply(&self) -> Result<ApiResponse<String>, reqwest::Error> {
         api::stats::get_bnb_supply(&self.client, &self.base_url, &self.api_key).await
     }
 
-    pub async fn get_validators(&self) -> Result<ValidatorsResponse, reqwest::Error> {
+    pub async fn get_validators(&self) -> Result<ApiResponse<Vec<Validator>>, reqwest::Error> {
         api::stats::get_validators(&self.client, &self.base_url, &self.api_key).await
     }
 
-    pub async fn get_bnb_price(&self) -> Result<BnbPriceResponse, reqwest::Error> {
+    pub async fn get_bnb_price(&self) -> Result<ApiResponse<Vec<BnbPriceResult>>, reqwest::Error> {
         api::stats::get_bnb_price(&self.client, &self.base_url, &self.api_key).await
     }
 
@@ -473,7 +468,7 @@ impl BscScanClient {
         start_date: &str,
         end_date: &str,
         sort: &str,
-    ) -> Result<BnbHistoricalPriceResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<Vec<BnbHistoricalPrice>>, reqwest::Error> {
         api::stats::get_bnb_historical_price(
             &self.client,
             &self.base_url,
@@ -490,7 +485,7 @@ impl BscScanClient {
         start_date: &str,
         end_date: &str,
         sort: &str,
-    ) -> Result<DailyTransactionFeeResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<Vec<DailyTransactionFee>>, reqwest::Error> {
         api::stats::get_daily_transaction_fee(
             &self.client,
             &self.base_url,
@@ -507,7 +502,7 @@ impl BscScanClient {
         start_date: &str,
         end_date: &str,
         sort: &str,
-    ) -> Result<DailyNewAddressResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<Vec<DailyNewAddress>>, reqwest::Error> {
         api::stats::get_daily_new_address(
             &self.client,
             &self.base_url,
@@ -524,7 +519,7 @@ impl BscScanClient {
         start_date: &str,
         end_date: &str,
         sort: &str,
-    ) -> Result<DailyNetworkUtilizationResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<Vec<DailyNetworkUtilization>>, reqwest::Error> {
         api::stats::get_daily_network_utilization(
             &self.client,
             &self.base_url,
@@ -541,7 +536,7 @@ impl BscScanClient {
         start_date: &str,
         end_date: &str,
         sort: &str,
-    ) -> Result<DailyTransactionCountResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<Vec<DailyTransactionCount>>, reqwest::Error> {
         api::stats::get_daily_transaction_count(
             &self.client,
             &self.base_url,
@@ -553,7 +548,7 @@ impl BscScanClient {
         .await
     }
 
-    pub async fn get_gas_oracle(&self) -> Result<GasOracleResponse, reqwest::Error> {
+    pub async fn get_gas_oracle(&self) -> Result<ApiResponse<GasOracleResult>, reqwest::Error> {
         api::gastracker::get_gas_oracle(&self.client, &self.base_url, &self.api_key).await
     }
 
@@ -562,7 +557,7 @@ impl BscScanClient {
         start_date: &str,
         end_date: &str,
         sort: &str,
-    ) -> Result<DailyAverageGasLimitResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<Vec<DailyAverageGasLimit>>, reqwest::Error> {
         api::gastracker::get_daily_average_gas_limit(
             &self.client,
             &self.base_url,
@@ -579,7 +574,7 @@ impl BscScanClient {
         start_date: &str,
         end_date: &str,
         sort: &str,
-    ) -> Result<DailyTotalGasUsedResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<Vec<DailyTotalGasUsed>>, reqwest::Error> {
         api::gastracker::get_daily_total_gas_used(
             &self.client,
             &self.base_url,
@@ -596,7 +591,7 @@ impl BscScanClient {
         start_date: &str,
         end_date: &str,
         sort: &str,
-    ) -> Result<DailyAverageGasPriceResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<Vec<DailyAverageGasPrice>>, reqwest::Error> {
         api::gastracker::get_daily_average_gas_price(
             &self.client,
             &self.base_url,
@@ -611,7 +606,7 @@ impl BscScanClient {
     pub async fn get_bep20_token_circulating_supply(
         &self,
         contract_address: &str,
-    ) -> Result<TokenResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<String>, reqwest::Error> {
         api::tokens::get_bep20_token_circulating_supply(
             &self.client,
             &self.base_url,
@@ -624,7 +619,7 @@ impl BscScanClient {
     pub async fn get_bep20_token_total_supply(
         &self,
         contract_address: &str,
-    ) -> Result<TokenResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<String>, reqwest::Error> {
         api::tokens::get_bep20_token_total_supply(
             &self.client,
             &self.base_url,
@@ -638,7 +633,7 @@ impl BscScanClient {
         &self,
         contract_address: &str,
         address: &str,
-    ) -> Result<TokenResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<String>, reqwest::Error> {
         api::tokens::get_bep20_token_account_balance(
             &self.client,
             &self.base_url,
@@ -653,7 +648,7 @@ impl BscScanClient {
         &self,
         contract_address: &str,
         block_no: u64,
-    ) -> Result<TokenResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<String>, reqwest::Error> {
         api::tokens::get_historical_bep20_token_total_supply(
             &self.client,
             &self.base_url,
@@ -669,7 +664,7 @@ impl BscScanClient {
         contract_address: &str,
         address: &str,
         block_no: u64,
-    ) -> Result<TokenResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<String>, reqwest::Error> {
         api::tokens::get_historical_bep20_token_account_balance(
             &self.client,
             &self.base_url,
@@ -686,7 +681,7 @@ impl BscScanClient {
         contract_address: &str,
         page: u64,
         offset: u64,
-    ) -> Result<TokenHoldersResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<Vec<TokenHolder>>, reqwest::Error> {
         api::tokens::get_token_holder_list(
             &self.client,
             &self.base_url,
@@ -701,7 +696,7 @@ impl BscScanClient {
     pub async fn get_token_info(
         &self,
         contract_address: &str,
-    ) -> Result<TokenInfoResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<Vec<TokenInfo>>, reqwest::Error> {
         api::tokens::get_token_info(
             &self.client,
             &self.base_url,
@@ -716,7 +711,7 @@ impl BscScanClient {
         address: &str,
         page: u64,
         offset: u64,
-    ) -> Result<AddressTokenBalanceResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<Vec<AddressTokenBalance>>, reqwest::Error> {
         api::tokens::get_address_bep20_token_holding(
             &self.client,
             &self.base_url,
@@ -733,7 +728,7 @@ impl BscScanClient {
         address: &str,
         page: u64,
         offset: u64,
-    ) -> Result<AddressNFTBalanceResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<Vec<AddressNFTBalance>>, reqwest::Error> {
         api::tokens::get_address_bep721_token_holding(
             &self.client,
             &self.base_url,
@@ -751,7 +746,7 @@ impl BscScanClient {
         contract_address: &str,
         page: u64,
         offset: u64,
-    ) -> Result<AddressNFTInventoryResponse, reqwest::Error> {
+    ) -> Result<ApiResponse<Vec<AddressNFTInventory>>, reqwest::Error> {
         api::tokens::get_address_bep721_token_inventory(
             &self.client,
             &self.base_url,
